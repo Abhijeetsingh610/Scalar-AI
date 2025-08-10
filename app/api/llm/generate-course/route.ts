@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
-})
-
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Groq client inside the function to avoid build-time errors
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json(
+        { error: 'Groq API key not configured' },
+        { status: 500 }
+      )
+    }
+
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY
+    })
+
     const { userProfile, skillGaps, careerGoals } = await request.json()
 
     if (!userProfile || !skillGaps || !careerGoals) {
