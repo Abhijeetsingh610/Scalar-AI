@@ -1,22 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Brain, User, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Brain, Lock, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function SignUpPage() {
+export default function ResetPasswordPage() {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
     password: '',
     confirmPassword: ''
   })
@@ -28,6 +25,19 @@ export default function SignUpPage() {
   
   const supabase = createClientComponentClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    // Check if user has a valid session from the reset link
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setError('Invalid reset link. Please request a new password reset.')
+      }
+    }
+    
+    checkSession()
+  }, [supabase])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -38,18 +48,6 @@ export default function SignUpPage() {
   }
 
   const validateForm = () => {
-    if (!formData.firstName.trim()) {
-      setError('First name is required')
-      return false
-    }
-    if (!formData.lastName.trim()) {
-      setError('Last name is required')
-      return false
-    }
-    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
-      setError('Please enter a valid email address')
-      return false
-    }
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long')
       return false
@@ -61,7 +59,7 @@ export default function SignUpPage() {
     return true
   }
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) return
@@ -70,26 +68,17 @@ export default function SignUpPage() {
     setError('')
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: formData.password
       })
 
-      if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
-          setError('This email is already registered. Please sign in instead.')
-        } else {
-          setError(signUpError.message)
-        }
-      } else if (data.user) {
-        setSuccess('Account created successfully! Please check your email to verify your account.')
+      if (updateError) {
+        setError(updateError.message)
+      } else {
+        setSuccess('Password updated successfully! Redirecting to dashboard...')
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 2000)
       }
     } catch (err) {
       setError('Something went wrong. Please try again.')
@@ -112,9 +101,9 @@ export default function SignUpPage() {
           
           <div className="flex items-center space-x-4">
             <Button variant="ghost" asChild>
-              <Link href="/">
+              <Link href="/signin">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
+                Back to Sign In
               </Link>
             </Button>
             <ThemeToggle />
@@ -122,7 +111,7 @@ export default function SignUpPage() {
         </div>
       </header>
 
-      {/* Sign Up Form */}
+      {/* Reset Password Form */}
       <div className="container mx-auto px-4 py-20">
         <div className="max-w-md mx-auto">
           <motion.div
@@ -133,60 +122,17 @@ export default function SignUpPage() {
             <Card>
               <CardHeader className="text-center">
                 <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <User className="w-6 h-6 text-primary" />
+                  <Lock className="w-6 h-6 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Create Your Account</CardTitle>
+                <CardTitle className="text-2xl">Reset Your Password</CardTitle>
                 <CardDescription>
-                  Join NeuroPulse to access your personalized business dashboard
+                  Enter your new password below
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        type="text"
-                        value={formData.firstName}
-                        onChange={handleChange}
-                        placeholder="John"
-                        disabled={isLoading}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        type="text"
-                        value={formData.lastName}
-                        onChange={handleChange}
-                        placeholder="Doe"
-                        disabled={isLoading}
-                        required
-                      />
-                    </div>
-                  </div>
-
+                <form onSubmit={handleResetPassword} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="john.doe@example.com"
-                      disabled={isLoading}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">New Password</Label>
                     <div className="relative">
                       <Input
                         id="password"
@@ -194,7 +140,7 @@ export default function SignUpPage() {
                         type={showPassword ? 'text' : 'password'}
                         value={formData.password}
                         onChange={handleChange}
-                        placeholder="Enter your password"
+                        placeholder="Enter your new password"
                         disabled={isLoading}
                         required
                       />
@@ -215,7 +161,7 @@ export default function SignUpPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
                     <div className="relative">
                       <Input
                         id="confirmPassword"
@@ -223,7 +169,7 @@ export default function SignUpPage() {
                         type={showConfirmPassword ? 'text' : 'password'}
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        placeholder="Confirm your password"
+                        placeholder="Confirm your new password"
                         disabled={isLoading}
                         required
                       />
@@ -260,20 +206,13 @@ export default function SignUpPage() {
                     {isLoading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                        Creating Account...
+                        Updating Password...
                       </>
                     ) : (
-                      'Create Account'
+                      'Update Password'
                     )}
                   </Button>
                 </form>
-
-                <div className="mt-6 text-center text-sm text-muted-foreground">
-                  Already have an account?{' '}
-                  <Link href="/signin" className="text-primary hover:underline">
-                    Sign In
-                  </Link>
-                </div>
               </CardContent>
             </Card>
           </motion.div>

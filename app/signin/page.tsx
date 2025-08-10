@@ -7,21 +7,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Brain, User, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Brain, LogIn, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-export default function SignUpPage() {
+export default function SignInPage() {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
     email: '',
-    password: '',
-    confirmPassword: ''
+    password: ''
   })
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -38,30 +34,18 @@ export default function SignUpPage() {
   }
 
   const validateForm = () => {
-    if (!formData.firstName.trim()) {
-      setError('First name is required')
-      return false
-    }
-    if (!formData.lastName.trim()) {
-      setError('Last name is required')
-      return false
-    }
     if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
       setError('Please enter a valid email address')
       return false
     }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long')
-      return false
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
+    if (!formData.password) {
+      setError('Password is required')
       return false
     }
     return true
   }
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) return
@@ -70,26 +54,48 @@ export default function SignUpPage() {
     setError('')
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
       })
 
-      if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
-          setError('This email is already registered. Please sign in instead.')
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please check your credentials and try again.')
         } else {
-          setError(signUpError.message)
+          setError(signInError.message)
         }
       } else if (data.user) {
-        setSuccess('Account created successfully! Please check your email to verify your account.')
+        setSuccess('Sign in successful! Redirecting to dashboard...')
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 1000)
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('Please enter your email address first')
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
+
+      if (error) {
+        setError(error.message)
+      } else {
+        setSuccess('Password reset email sent! Check your inbox.')
       }
     } catch (err) {
       setError('Something went wrong. Please try again.')
@@ -122,7 +128,7 @@ export default function SignUpPage() {
         </div>
       </header>
 
-      {/* Sign Up Form */}
+      {/* Sign In Form */}
       <div className="container mx-auto px-4 py-20">
         <div className="max-w-md mx-auto">
           <motion.div
@@ -133,44 +139,15 @@ export default function SignUpPage() {
             <Card>
               <CardHeader className="text-center">
                 <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <User className="w-6 h-6 text-primary" />
+                  <LogIn className="w-6 h-6 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Create Your Account</CardTitle>
+                <CardTitle className="text-2xl">Welcome Back</CardTitle>
                 <CardDescription>
-                  Join NeuroPulse to access your personalized business dashboard
+                  Sign in to your NeuroPulse account to continue
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        type="text"
-                        value={formData.firstName}
-                        onChange={handleChange}
-                        placeholder="John"
-                        disabled={isLoading}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        type="text"
-                        value={formData.lastName}
-                        onChange={handleChange}
-                        placeholder="Doe"
-                        disabled={isLoading}
-                        required
-                      />
-                    </div>
-                  </div>
-
+                <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <Input
@@ -214,35 +191,6 @@ export default function SignUpPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        placeholder="Confirm your password"
-                        disabled={isLoading}
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
                   {error && (
                     <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
                       {error}
@@ -260,18 +208,30 @@ export default function SignUpPage() {
                     {isLoading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                        Creating Account...
+                        Signing In...
                       </>
                     ) : (
-                      'Create Account'
+                      'Sign In'
                     )}
                   </Button>
                 </form>
 
+                <div className="mt-4 text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleForgotPassword}
+                    disabled={isLoading}
+                    className="text-sm text-muted-foreground hover:text-primary"
+                  >
+                    Forgot your password?
+                  </Button>
+                </div>
+
                 <div className="mt-6 text-center text-sm text-muted-foreground">
-                  Already have an account?{' '}
-                  <Link href="/signin" className="text-primary hover:underline">
-                    Sign In
+                  Don't have an account?{' '}
+                  <Link href="/signup" className="text-primary hover:underline">
+                    Sign Up
                   </Link>
                 </div>
               </CardContent>

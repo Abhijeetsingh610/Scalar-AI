@@ -57,6 +57,9 @@ export default function HomePage() {
             <Link href="/masterclasses" className="text-sm font-medium hover:text-primary transition-colors">
               Masterclasses
             </Link>
+            <Link href="/signin" className="text-sm font-medium hover:text-primary transition-colors">
+              Sign In
+            </Link>
             <Link href="/signup" className="text-sm font-medium hover:text-primary transition-colors">
               Sign Up
             </Link>

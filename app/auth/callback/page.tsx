@@ -16,12 +16,37 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        const { error } = await supabase.auth.getSession()
+        const { data, error } = await supabase.auth.getSession()
         
         if (error) {
           setError(error.message)
           setLoading(false)
           return
+        }
+
+        // If user is signed in, check if profile exists and create if needed
+        if (data.session?.user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.session.user.id)
+            .single()
+
+          // If profile doesn't exist, create it
+          if (!profile && !profileError) {
+            const { error: createProfileError } = await supabase
+              .from('profiles')
+              .insert({
+                id: data.session.user.id,
+                email: data.session.user.email || '',
+                first_name: data.session.user.user_metadata?.first_name || '',
+                last_name: data.session.user.user_metadata?.last_name || '',
+              })
+
+            if (createProfileError) {
+              console.error('Error creating profile:', createProfileError)
+            }
+          }
         }
 
         // Redirect to dashboard

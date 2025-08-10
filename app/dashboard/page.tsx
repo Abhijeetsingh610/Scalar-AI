@@ -168,6 +168,55 @@ export default function DashboardPage() {
 
   const fetchUserProfile = async (email: string) => {
     try {
+      // First, try to get profile data
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        // If profile exists, use it for basic info
+        if (profile && !profileError) {
+          // Also try to get lead data for additional career info
+          const { data: leadData, error: leadError } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('email', email)
+            .order('created_at', { ascending: false })
+            .limit(1)
+
+          const lead = leadData && leadData.length > 0 ? leadData[0] as Lead : null
+
+          setUserProfile({
+            name: `${profile.first_name} ${profile.last_name}`.trim() || profile.email,
+            currentRole: lead?.job_role || 'Professional',
+            experienceLevel: lead?.experience_level || 'Getting Started',
+            careerGoals: lead?.career_goals || 'Advance my career in technology',
+            preferredTechStack: lead?.preferred_tech_stack || ['JavaScript', 'Python'],
+            roadmap: {
+              currentLevel: lead?.job_role || 'Professional',
+              nextMilestones: [
+                'Complete recommended masterclasses',
+                'Build portfolio projects',
+                'Network with industry professionals',
+                'Apply for next level positions'
+              ],
+              recommendedSkills: ['Advanced JavaScript', 'Cloud Technologies', 'System Design'],
+              estimatedTimeframe: '6-12 months'
+            }
+          })
+          
+          if (lead) {
+            generateRecommendations(lead)
+          }
+          return
+        }
+      }
+
+      // Fallback to leads table only
       const { data, error } = await supabase
         .from('leads')
         .select('*')
