@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
 import MasterclassCard from '@/components/masterclass-card'
 import AIRoadmap from '@/components/ai-roadmap'
+import AssessmentPopup from '@/components/assessment-popup'
 import Link from 'next/link'
 
 interface AuthUser {
@@ -494,9 +495,9 @@ export default function DashboardPage() {
           <p className="text-muted-foreground mb-8">
             Take our AI career assessment to get your personalized dashboard
           </p>
-          <Button asChild>
-            <Link href="/">Take Assessment</Link>
-          </Button>
+          <AssessmentPopup onComplete={() => window.location.reload()}>
+            <Button>Take Assessment</Button>
+          </AssessmentPopup>
         </div>
       </div>
     )
@@ -712,9 +713,9 @@ export default function DashboardPage() {
                   <p className="text-muted-foreground mb-6">
                     Get your AI-powered career roadmap with personalized courses and learning paths
                   </p>
-                  <Button asChild>
-                    <Link href="/">Take AI Assessment</Link>
-                  </Button>
+                  <AssessmentPopup onComplete={() => window.location.reload()}>
+                    <Button>Take AI Assessment</Button>
+                  </AssessmentPopup>
                 </CardContent>
               </Card>
             </motion.div>
