@@ -10,6 +10,13 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
+  // Protect admin routes
+  if (req.nextUrl.pathname.startsWith('/admin') && req.nextUrl.pathname !== '/admin/login') {
+    if (!session || session.user.email !== 'abhijeet610singh@gmail.com') {
+      return NextResponse.redirect(new URL('/admin/login', req.url))
+    }
+  }
+
   // If user is authenticated and trying to access home page, redirect to dashboard
   if (session && req.nextUrl.pathname === '/') {
     return NextResponse.redirect(new URL('/dashboard', req.url))
@@ -24,5 +31,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/signin', '/signup']
+  matcher: ['/', '/signin', '/signup', '/admin/:path*']
 }

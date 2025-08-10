@@ -16,9 +16,10 @@ import { motion } from 'framer-motion'
 interface AssessmentPopupProps {
   children: React.ReactNode
   onComplete?: () => void
+  isRetake?: boolean
 }
 
-export default function AssessmentPopup({ children, onComplete }: AssessmentPopupProps) {
+export default function AssessmentPopup({ children, onComplete, isRetake = false }: AssessmentPopupProps) {
   const [open, setOpen] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -177,10 +178,13 @@ export default function AssessmentPopup({ children, onComplete }: AssessmentPopu
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Brain className="w-6 h-6 text-primary" />
-            <span>AI Career Assessment</span>
+            <span>{isRetake ? 'Retake Career Assessment' : 'AI Career Assessment'}</span>
           </DialogTitle>
           <DialogDescription>
-            Get personalized course recommendations based on your goals and experience
+            {isRetake 
+              ? 'Update your profile and get new personalized recommendations'
+              : 'Get personalized course recommendations based on your goals and experience'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -193,7 +197,10 @@ export default function AssessmentPopup({ children, onComplete }: AssessmentPopu
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h3 className="text-xl font-semibold mb-2">Assessment Complete!</h3>
             <p className="text-muted-foreground mb-6">
-              Your personalized recommendations are being generated. Refresh your dashboard to see them!
+              {isRetake 
+                ? 'Your updated recommendations are being generated. Refresh your dashboard to see them!'
+                : 'Your personalized recommendations are being generated. Refresh your dashboard to see them!'
+              }
             </p>
             <Button onClick={resetForm}>Close</Button>
           </motion.div>
