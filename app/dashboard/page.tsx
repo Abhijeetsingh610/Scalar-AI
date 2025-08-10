@@ -526,6 +526,11 @@ export default function DashboardPage() {
             <Link href="/dashboard" className="text-sm font-medium text-primary">
               Dashboard
             </Link>
+            {authUser?.email === 'abhijeet610singh@gmail.com' && (
+              <Link href="/admin/analytics" className="text-sm font-medium hover:text-primary transition-colors bg-primary/10 px-3 py-1 rounded-md">
+                Admin Dashboard
+              </Link>
+            )}
             {authUser && (
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground">
