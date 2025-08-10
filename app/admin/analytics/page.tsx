@@ -8,6 +8,7 @@ import {
   Brain, 
   TrendingUp, 
   Users, 
+  User,
   GraduationCap, 
   Calendar,
   Target,
@@ -29,6 +30,7 @@ import Link from 'next/link'
 
 interface AnalyticsData {
   totalLeads: number
+  totalProfiles: number
   masterclassRegistrations: number
   courseEnrollments: number
   consultationBookings: number
@@ -40,12 +42,19 @@ interface AnalyticsData {
   }
   topTechStacks: Array<{ name: string; count: number }>
   experienceLevels: Array<{ level: string; count: number }>
+  topJobRoles: Array<{ role: string; count: number }>
   recentActivity: Array<{
-    type: 'lead' | 'registration' | 'enrollment' | 'booking'
+    type: 'lead' | 'registration' | 'enrollment' | 'booking' | 'signup'
     name: string
+    email?: string
     timestamp: string
     details: string
+    extra?: string
   }>
+  detailedLeads: any[]
+  detailedProfiles: any[]
+  detailedRegistrations: any[]
+  detailedEnrollments: any[]
 }
 
 export default function AdminAnalyticsPage() {
@@ -74,33 +83,53 @@ export default function AdminAnalyticsPage() {
 
   const fetchAnalytics = async () => {
     try {
-      // Fetch leads
+      // Fetch leads with all details
       const { data: leads, error: leadsError } = await supabase
         .from('leads')
         .select('*')
+        .order('created_at', { ascending: false })
 
-      // Fetch masterclass registrations
+      // Fetch user profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      // Fetch masterclass registrations with lead details
       const { data: registrations, error: regError } = await supabase
         .from('masterclass_registrations')
-        .select('*, leads(name)')
+        .select(`
+          *,
+          leads(name, email, job_role),
+          masterclasses(title, description)
+        `)
+        .order('created_at', { ascending: false })
 
-      // Fetch course enrollments
+      // Fetch course enrollments with lead details
       const { data: enrollments, error: enrollError } = await supabase
         .from('course_enrollments')
-        .select('*, leads(name)')
+        .select(`
+          *,
+          leads(name, email, job_role)
+        `)
+        .order('created_at', { ascending: false })
 
-      // Fetch consultation bookings
+      // Fetch consultation bookings with lead details
       const { data: bookings, error: bookingsError } = await supabase
         .from('consultation_bookings')
-        .select('*, leads(name)')
+        .select(`
+          *,
+          leads(name, email, job_role)
+        `)
+        .order('created_at', { ascending: false })
 
       if (leadsError || regError || enrollError || bookingsError) {
-        console.error('Error fetching analytics:', { leadsError, regError, enrollError, bookingsError })
-        return
+        console.error('Error fetching analytics:', { leadsError, regError, enrollError, bookingsError, profilesError })
       }
 
       // Process the data
       const totalLeads = leads?.length || 0
+      const totalProfiles = profiles?.length || 0
       const masterclassRegistrations = registrations?.length || 0
       const courseEnrollments = enrollments?.length || 0
       const consultationBookings = bookings?.length || 0
@@ -111,10 +140,10 @@ export default function AdminAnalyticsPage() {
       const courseToConsultation = courseEnrollments > 0 ? (consultationBookings / courseEnrollments) * 100 : 0
       const overallConversion = totalLeads > 0 ? (consultationBookings / totalLeads) * 100 : 0
 
-      // Process tech stacks
+      // Process tech stacks from leads
       const techStackCounts: { [key: string]: number } = {}
       leads?.forEach(lead => {
-        if (lead.preferred_tech_stack) {
+        if (lead.preferred_tech_stack && Array.isArray(lead.preferred_tech_stack)) {
           lead.preferred_tech_stack.forEach((tech: string) => {
             techStackCounts[tech] = (techStackCounts[tech] || 0) + 1
           })
@@ -126,7 +155,7 @@ export default function AdminAnalyticsPage() {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5)
 
-      // Process experience levels
+      // Process experience levels from leads
       const experienceCounts: { [key: string]: number } = {}
       leads?.forEach(lead => {
         if (lead.experience_level) {
@@ -138,44 +167,76 @@ export default function AdminAnalyticsPage() {
         .map(([level, count]) => ({ level, count }))
         .sort((a, b) => b.count - a.count)
 
-      // Recent activity (last 10 activities)
+      // Process job roles
+      const jobRoleCounts: { [key: string]: number } = {}
+      leads?.forEach(lead => {
+        if (lead.job_role) {
+          jobRoleCounts[lead.job_role] = (jobRoleCounts[lead.job_role] || 0) + 1
+        }
+      })
+
+      const topJobRoles = Object.entries(jobRoleCounts)
+        .map(([role, count]) => ({ role, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+
+      // Recent activity with more details
       const recentActivity: any[] = []
       
-      // Add recent leads
-      leads?.slice(-5).forEach(lead => {
+      // Add recent leads with more info
+      leads?.slice(0, 8).forEach(lead => {
         recentActivity.push({
           type: 'lead',
           name: lead.name,
+          email: lead.email,
           timestamp: lead.created_at,
-          details: `New lead: ${lead.job_role}`
+          details: `New lead: ${lead.job_role || 'Unknown Role'}`,
+          extra: lead.experience_level || 'Unknown Experience'
         })
       })
 
       // Add recent registrations
-      registrations?.slice(-3).forEach(reg => {
+      registrations?.slice(0, 5).forEach(reg => {
         recentActivity.push({
           type: 'registration',
-          name: reg.leads?.name || 'Unknown',
+          name: reg.leads?.name || 'Unknown User',
+          email: reg.leads?.email || '',
           timestamp: reg.created_at,
-          details: 'Registered for masterclass'
+          details: `Registered for: ${reg.masterclasses?.title || 'Masterclass'}`,
+          extra: reg.leads?.job_role || 'Unknown Role'
         })
       })
 
       // Add recent enrollments
-      enrollments?.slice(-2).forEach(enrollment => {
+      enrollments?.slice(0, 5).forEach(enrollment => {
         recentActivity.push({
           type: 'enrollment',
-          name: enrollment.leads?.name || 'Unknown',
+          name: enrollment.leads?.name || 'Unknown User',
+          email: enrollment.leads?.email || '',
           timestamp: enrollment.created_at,
-          details: 'Enrolled in course'
+          details: 'Enrolled in course',
+          extra: enrollment.leads?.job_role || 'Unknown Role'
         })
       })
 
-      // Sort by timestamp
+      // Add recent profiles
+      profiles?.slice(0, 3).forEach(profile => {
+        recentActivity.push({
+          type: 'signup',
+          name: `${profile.first_name} ${profile.last_name}`,
+          email: profile.email,
+          timestamp: profile.created_at,
+          details: 'New user signup',
+          extra: 'User Profile Created'
+        })
+      })
+
+      // Sort by timestamp (newest first)
       recentActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
       setAnalytics({
         totalLeads,
+        totalProfiles,
         masterclassRegistrations,
         courseEnrollments,
         consultationBookings,
@@ -187,7 +248,12 @@ export default function AdminAnalyticsPage() {
         },
         topTechStacks,
         experienceLevels,
-        recentActivity: recentActivity.slice(0, 10)
+        topJobRoles,
+        recentActivity: recentActivity.slice(0, 15),
+        detailedLeads: leads || [],
+        detailedProfiles: profiles || [],
+        detailedRegistrations: registrations || [],
+        detailedEnrollments: enrollments || []
       })
 
     } catch (error) {
@@ -260,7 +326,7 @@ export default function AdminAnalyticsPage() {
         {analytics && (
           <>
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -274,7 +340,26 @@ export default function AdminAnalyticsPage() {
                   <CardContent>
                     <div className="text-2xl font-bold">{analytics.totalLeads}</div>
                     <p className="text-xs text-muted-foreground">
-                      Active prospects in funnel
+                      Assessment completions
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+              >
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">User Signups</CardTitle>
+                    <User className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{analytics.totalProfiles}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Registered user accounts
                     </p>
                   </CardContent>
                 </Card>
@@ -482,10 +567,183 @@ export default function AdminAnalyticsPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium">{activity.name}</p>
                             <p className="text-xs text-muted-foreground">{activity.details}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(activity.timestamp).toLocaleDateString()}
-                            </p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(activity.timestamp).toLocaleDateString()}
+                              </p>
+                              {activity.email && (
+                                <p className="text-xs text-muted-foreground">{activity.email}</p>
+                              )}
+                            </div>
+                            {activity.extra && (
+                              <p className="text-xs text-blue-600">{activity.extra}</p>
+                            )}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+
+            {/* Detailed Data Tables */}
+            <div className="grid lg:grid-cols-2 gap-8 mb-8">
+              {/* User Profiles Table */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 }}
+              >
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <User className="w-5 h-5" />
+                      <span>User Profiles ({analytics.totalProfiles})</span>
+                    </CardTitle>
+                    <CardDescription>Registered user accounts with full details</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-2">Name</th>
+                            <th className="text-left p-2">Email</th>
+                            <th className="text-left p-2">Joined</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics.detailedProfiles.slice(0, 10).map((profile, index) => (
+                            <tr key={index} className="border-b">
+                              <td className="p-2">{profile.first_name} {profile.last_name}</td>
+                              <td className="p-2 text-xs">{profile.email}</td>
+                              <td className="p-2 text-xs">{new Date(profile.created_at).toLocaleDateString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {analytics.detailedProfiles.length > 10 && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Showing first 10 of {analytics.detailedProfiles.length} profiles
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Leads Assessment Data */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.0 }}
+              >
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Target className="w-5 h-5" />
+                      <span>Career Assessments ({analytics.totalLeads})</span>
+                    </CardTitle>
+                    <CardDescription>Detailed career assessment submissions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-2">Name</th>
+                            <th className="text-left p-2">Role</th>
+                            <th className="text-left p-2">Experience</th>
+                            <th className="text-left p-2">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics.detailedLeads.slice(0, 10).map((lead, index) => (
+                            <tr key={index} className="border-b">
+                              <td className="p-2">{lead.name}</td>
+                              <td className="p-2 text-xs">{lead.job_role || 'N/A'}</td>
+                              <td className="p-2 text-xs">{lead.experience_level || 'N/A'}</td>
+                              <td className="p-2 text-xs">{new Date(lead.created_at).toLocaleDateString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {analytics.detailedLeads.length > 10 && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Showing first 10 of {analytics.detailedLeads.length} assessments
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+
+            {/* Technology Preferences and Job Roles */}
+            <div className="grid lg:grid-cols-2 gap-8 mb-8">
+              {/* Top Job Roles */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.1 }}
+              >
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Award className="w-5 h-5" />
+                      <span>Popular Job Roles</span>
+                    </CardTitle>
+                    <CardDescription>Most common career positions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analytics.topJobRoles.map((role, index) => (
+                        <div key={index} className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{role.role}</span>
+                          <div className="flex items-center space-x-2">
+                            <Progress value={(role.count / analytics.totalLeads) * 100} className="w-20 h-2" />
+                            <span className="text-sm text-muted-foreground">{role.count}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {analytics.topJobRoles.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No job role data available</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Detailed Activity Log */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.2 }}
+              >
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Calendar className="w-5 h-5" />
+                      <span>Engagement Timeline</span>
+                    </CardTitle>
+                    <CardDescription>Complete user interaction history</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {analytics.recentActivity.map((activity, index) => (
+                        <div key={index} className="bg-muted/30 rounded p-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium capitalize">{activity.type}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(activity.timestamp).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-sm">{activity.name}</p>
+                          <p className="text-xs text-muted-foreground">{activity.details}</p>
+                          {activity.email && (
+                            <p className="text-xs text-blue-600">{activity.email}</p>
+                          )}
                         </div>
                       ))}
                     </div>
