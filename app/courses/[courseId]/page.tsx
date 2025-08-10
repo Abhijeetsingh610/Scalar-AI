@@ -81,8 +81,19 @@ export default function CoursePage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      if (!user) {
+      if (!user?.email) {
         return // Not logged in, so not enrolled
+      }
+
+      // First find the lead record for this user
+      const { data: leadData, error: leadError } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('email', user.email!)
+        .single()
+
+      if (leadError || !leadData) {
+        return // No lead record, so not enrolled
       }
 
       // Check if user is enrolled in this course
@@ -90,7 +101,7 @@ export default function CoursePage() {
         .from('course_enrollments')
         .select('id')
         .eq('course_id', courseId)
-        .eq('lead_id', user.id) // This might need adjustment based on your schema
+        .eq('lead_id', leadData.id)
         .single()
 
       if (enrollment && !error) {
@@ -188,7 +199,7 @@ export default function CoursePage() {
       // Call the actual enrollment API
       const { data: { user } } = await supabase.auth.getUser()
       
-      if (!user) {
+      if (!user?.email) {
         alert('Please log in to enroll in courses')
         router.push('/login')
         return
@@ -198,7 +209,7 @@ export default function CoursePage() {
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .select('id')
-        .eq('email', user.email)
+        .eq('email', user.email!)
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
@@ -211,8 +222,8 @@ export default function CoursePage() {
         const { data: newLead, error: createError } = await supabase
           .from('leads')
           .insert({
-            email: user.email,
-            name: user.user_metadata?.full_name || user.email.split('@')[0],
+            email: user.email!,
+            name: user.user_metadata?.full_name || user.email!.split('@')[0],
             source: 'course_enrollment',
             status: 'qualified',
             score: 85

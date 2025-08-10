@@ -176,8 +176,8 @@ Monthly Revenue Increase: $358,800 (400% improvement)
 ### **Installation**
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/neuropulse-edtech.git
-cd neuropulse-edtech
+git clone https://github.com/Abhijeetsingh610/Scalar-AI.git
+cd Scalar-AI
 
 # Install dependencies
 npm install
