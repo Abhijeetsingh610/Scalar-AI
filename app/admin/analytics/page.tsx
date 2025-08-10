@@ -50,6 +50,7 @@ interface AnalyticsData {
     timestamp: string
     details: string
     extra?: string
+    priority?: 'critical' | 'high' | 'medium' | 'low'
   }>
   detailedLeads: any[]
   detailedProfiles: any[]
@@ -557,26 +558,36 @@ export default function AdminAnalyticsPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {analytics.recentActivity.map((activity, index) => (
-                        <div key={index} className="flex items-start space-x-3">
-                          <div className={`w-2 h-2 rounded-full mt-2 ${
-                            activity.type === 'lead' ? 'bg-blue-500' :
-                            activity.type === 'registration' ? 'bg-green-500' :
-                            activity.type === 'enrollment' ? 'bg-purple-500' :
-                            'bg-orange-500'
+                        <div key={index} className="flex items-start space-x-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                          <div className={`w-3 h-3 rounded-full mt-1.5 ${
+                            activity.priority === 'critical' ? 'bg-red-500 animate-pulse' :
+                            activity.priority === 'high' ? 'bg-orange-500' :
+                            activity.priority === 'medium' ? 'bg-yellow-500' :
+                            'bg-green-500'
                           }`} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">{activity.name}</p>
-                            <p className="text-xs text-muted-foreground">{activity.details}</p>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm font-medium">{activity.name}</p>
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                activity.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                activity.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                activity.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-green-100 text-green-700'
+                              }`}>
+                                {activity.priority}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-2">{activity.details}</p>
                             <div className="flex items-center justify-between">
                               <p className="text-xs text-muted-foreground">
-                                {new Date(activity.timestamp).toLocaleDateString()}
+                                {new Date(activity.timestamp).toLocaleDateString()} {new Date(activity.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                               </p>
                               {activity.email && (
-                                <p className="text-xs text-muted-foreground">{activity.email}</p>
+                                <p className="text-xs text-blue-600 font-medium">{activity.email}</p>
                               )}
                             </div>
                             {activity.extra && (
-                              <p className="text-xs text-blue-600">{activity.extra}</p>
+                              <p className="text-xs text-purple-600 font-medium mt-1">{activity.extra}</p>
                             )}
                           </div>
                         </div>
