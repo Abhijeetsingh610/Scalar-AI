@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Brain, Code, Target, ArrowRight, CheckCircle, Zap } from 'lucide-react'
 import AssessmentPopup from '@/components/assessment-popup'
+import UserAssessmentPopup from '@/components/user-assessment-popup'
 
 interface FormData {
   name: string
@@ -190,11 +191,11 @@ export default function CareerAssessmentForm() {
               <Button asChild className="w-full">
                 <a href="/dashboard">View My Roadmap</a>
               </Button>
-              <AssessmentPopup isRetake={true} onComplete={() => window.location.reload()}>
+              <UserAssessmentPopup onComplete={() => window.location.reload()}>
                 <Button variant="outline" className="w-full">
                   Take Another Assessment
                 </Button>
-              </AssessmentPopup>
+              </UserAssessmentPopup>
             </div>
           </CardContent>
         </Card>
